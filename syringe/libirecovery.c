@@ -786,7 +786,6 @@ irecv_error_t irecv_receive(irecv_client_t client) {
 	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
 	
 	int bytes = 0;
-
 	while (irecv_bulk_transfer(client, 0x81, (unsigned char*) buffer, BUFFER_SIZE, &bytes, 1000) == 0) {
 		if (bytes > 0) {
 			if (client->received_callback != NULL) {
@@ -889,6 +888,34 @@ irecv_error_t irecv_get_ecid(irecv_client_t client, unsigned long long* ecid) {
 		return IRECV_E_UNKNOWN_ERROR;
 	}
 	sscanf(ecid_string, "ECID:%qX", ecid);
+
+	return IRECV_E_SUCCESS;
+}
+
+irecv_error_t irecv_get_srnm(irecv_client_t client, unsigned char* srnm) {
+	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
+
+	char* srnmp;
+	char* srnm_string = strstr(client->serial, "SRNM:[");
+	if(srnm_string == NULL) {
+		srnm = NULL;
+		return IRECV_E_UNKNOWN_ERROR;
+	}
+	sscanf(srnm_string, "SRNM:[%s]", srnm);
+
+	return IRECV_E_SUCCESS;
+}
+
+irecv_error_t irecv_get_imei(irecv_client_t client, unsigned char* imei) {
+	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
+
+	char* imeip;
+	char* imei_string = strstr(client->serial, "IMEI:[");
+	if (imei_string == NULL) {
+		*imei = 0;
+		return IRECV_E_UNKNOWN_ERROR;
+	}
+	sscanf(imei_string, "IMEI:[%s]", imei);
 
 	return IRECV_E_SUCCESS;
 }
@@ -1146,69 +1173,45 @@ irecv_error_t irecv_get_device(irecv_client_t client, irecv_device_t* device) {
 		}
 
 		switch (bdid) {
-		case BDID_IPHONE2G:
-			device_id = DEVICE_IPHONE2G;
-			break;
+			case BDID_IPHONE2G: device_id = DEVICE_IPHONE2G; break;
 
-		case BDID_IPHONE3G:
-			device_id = DEVICE_IPHONE3G;
-			break;
+			case BDID_IPHONE3G: device_id = DEVICE_IPHONE3G; break;
 
-		case BDID_IPOD1G:
-			device_id = DEVICE_IPOD1G;
-			break;
+			case BDID_IPOD1G: device_id = DEVICE_IPOD1G; break;
 
-		default:
-			device_id = DEVICE_UNKNOWN;
-			break;
+			default: device_id = DEVICE_UNKNOWN; break;
 		}
 		break;
 
-	case CPID_IPHONE3GS:
-		device_id = DEVICE_IPHONE3GS;
-		break;
+	case CPID_IPHONE3GS: device_id = DEVICE_IPHONE3GS; break;
 
-	case CPID_IPOD2G:
-		device_id = DEVICE_IPOD2G;
-		break;
+	case CPID_IPOD2G: device_id = DEVICE_IPOD2G; break;
 
-	case CPID_IPOD3G:
-		device_id = DEVICE_IPOD3G;
-		break;
+	case CPID_IPOD3G: device_id = DEVICE_IPOD3G; break;
 
 	case CPID_IPAD1G:
-		// iPhone3,1 iPad4,1 and iPad1,1 all share the same ChipID
+		// iPhone3,1 iPhone3,3 iPod4,1 and iPad1,1 all share the same ChipID
 		//   so we need to check the BoardID
 		if (irecv_get_bdid(client, &bdid) < 0) {
 			break;
 		}
 
 		switch (bdid) {
-		case BDID_IPAD1G:
-			device_id = DEVICE_IPAD1G;
-			break;
+			case BDID_IPAD1G: device_id = DEVICE_IPAD1G; break;
 
-		case BDID_IPHONE4:
-			device_id = DEVICE_IPHONE4;
-			break;
+			case BDID_IPHONE4: device_id = DEVICE_IPHONE4; break;
 
-		case BDID_IPOD4G:
-			device_id = DEVICE_IPOD4G;
-			break;
+			case BDID_IPOD4G: device_id = DEVICE_IPOD4G; break;
 
-		case BDID_APPLETV2:
-			device_id = DEVICE_APPLETV2;
-			break;
+			case BDID_APPLETV2: device_id = DEVICE_APPLETV2; break;
 
-		default:
-			device_id = DEVICE_UNKNOWN;
-			break;
+			case BDID_IPHONE42: device_id = DEVICE_IPHONE42; break;
+
+			default: device_id = DEVICE_UNKNOWN; break;
 		}
 		break;
 
-	default:
-		device_id = DEVICE_UNKNOWN;
-		break;
+		default: device_id = DEVICE_UNKNOWN; break;
 	}
 
 	*device = &irecv_devices[device_id];
@@ -1225,7 +1228,7 @@ irecv_client_t irecv_reconnect(irecv_client_t client, int initial_pause) {
 	}
 
 	if (initial_pause > 0) {
-	//sleep(initial_pause);
+		sleep(initial_pause);
 	}
 	
 	error = irecv_open_attempts(&new_client, 10);

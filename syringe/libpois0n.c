@@ -128,79 +128,52 @@ int pois0n_injectonly() {
 	//////////////////////////////////////
 	// Send exploit
 	if (device->chip_id == 8930) {
-
 #ifdef LIMERA1N
-
 		debug("[!] Exploiting with limera1n... [!]\n");
 		if (limera1n_exploit() < 0) {
-			error("Unable to upload exploit data\n");
+			error("[!] Exploiting with limera1n FAILED. [!]\n");
 			return -1;
 		}
-
 #else
-
-		error("Sorry, this device is not currently supported\n");
+		error("Sorry, this device is not currently supported.\n");
 		return -1;
-
 #endif
-
 	}
-
 	else if (device->chip_id == 8920 || device->chip_id == 8922) {
-
 #ifdef LIMERA1N
-
-		debug("Preparing to upload limera1n exploit\n");
+		debug("[!] Exploiting with limera1n... [!]\n");
 		if (limera1n_exploit() < 0) {
-			error("Unable to upload exploit data\n");
+			error("[!] Exploiting with limera1n FAILED. [!]\n");
 			return -1;
 		}
-
 #else
-
 		error("Sorry, this device is not currently supported\n");
 		return -1;
-
 #endif
-
 	}
-
 	else if (device->chip_id == 8720) {
-
 #ifdef STEAKS4UCE
-
-		//debug("Preparing to upload steaks4uce exploit\n");
+		debug("[!] Exploiting with steaks4uce... [!]\n");
 		if (steaks4uce_exploit() < 0) {
-			//error("[!] steaks4uce exploit FAILED. [!]\n");
+			error("[!] Exploiting with steaks4uce FAILED. [!]\n");
 			return -1;
 		}
-
 #else
-
 		error("Sorry, this device is not currently supported\n");
 		return -1;
-
 #endif
-
 	}
-
 	else if (device->chip_id == 8900) {
-
 #ifdef PWNAGE2
-
-		debug("Preparing to upload pwnage2 exploit\n");
+		debug("[!] Exploiting with pwnage2... [!]\n");
 		if(pwnage2_exploit() < 0) {
-			error("Unable to upload exploit data\n");
+			error("[!] Exploiting with pwnage2 FAILED. [!]\n");
 			return -1;
 		}
-
 #else
-
 		error("Sorry, this device is not currently supported\n");
 		return -1;
-
 #endif
-
 	}
 
 	else {
@@ -209,4 +182,3 @@ int pois0n_injectonly() {
 	}
 	return 0;
 }
-

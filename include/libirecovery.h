@@ -60,7 +60,7 @@ extern "C" {
 #endif
 
 #define APPLE_VENDOR_ID 0x05AC
-
+	
 #define CPID_UNKNOWN        -1
 #define CPID_IPHONE2G     8900
 #define CPID_IPOD1G       8900
@@ -72,6 +72,7 @@ extern "C" {
 #define CPID_IPHONE4      8930
 #define CPID_IPOD4G       8930
 #define CPID_APPLETV2     8930
+#define CPID_IPHONE42     8930
 
 #define BDID_UNKNOWN        -1
 #define BDID_IPHONE2G        0
@@ -84,6 +85,7 @@ extern "C" {
 #define BDID_IPHONE4         0
 #define BDID_IPOD4G          8
 #define BDID_APPLETV2       10
+#define BDID_IPHONE42        6
 
 #define DEVICE_UNKNOWN      -1
 #define DEVICE_IPHONE2G      0
@@ -96,6 +98,7 @@ extern "C" {
 #define DEVICE_IPHONE4       7
 #define DEVICE_IPOD4G        8
 #define DEVICE_APPLETV2      9
+#define DEVICE_IPHONE42     10
 
 enum {
 	kRecoveryMode1 = 0x1280,
@@ -174,31 +177,35 @@ struct irecv_device {
 	const char* model;
 	unsigned int board_id;
 	unsigned int chip_id;
+	const char* bid;
+	const char* name;
 	const char* url;
 };
 
 static const struct irecv_device irecv_devices[] = {
-	{  0, "iPhone1,1",  "m68ap",  0,  8900,
-	"http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iPhone/061-7481.20100202.4orot/iPhone1,1_3.1.3_7E18_Restore.ipsw" },
-	{  1, "iPod1,1",    "n45ap",  2,  8900,
+	{  0, "iPhone1,1",  "m68ap",  0,  8900,  "m68",  "iPhone 2G",
+	"http://appldnld.apple.com/iPhone/061-7481.20100202.4orot/iPhone1,1_3.1.3_7E18_Restore.ipsw" },
+	{  1, "iPod1,1",    "n45ap",  2,  8900,  "n45",  "iPod touch 1",
 	NULL },
-	{  2, "iPhone1,2",  "n82ap",  4,  8900,
+	{  2, "iPhone1,2",  "n82ap",  4,  8900,  "n82",  "iPhone 3G",
 	"http://appldnld.apple.com/iPhone4/061-7932.20100908.3fgt5/iPhone1,2_4.1_8B117_Restore.ipsw" },
-	{  3, "iPod2,1",    "n72ap",  0,  8720,
+	{  3, "iPod2,1",    "n72ap",  0,  8720,  "n72",  "iPod touch 2",
 	"http://appldnld.apple.com/iPhone4/061-7937.20100908.ghj4f/iPod2,1_4.1_8B117_Restore.ipsw" },
-	{  4, "iPhone2,1",  "n88ap",  0,  8920,
+	{  4, "iPhone2,1",  "n88ap",  0,  8920,  "n88",  "iPhone 3GS",
 	"http://appldnld.apple.com/iPhone4/061-7938.20100908.F3rCk/iPhone2,1_4.1_8B117_Restore.ipsw" },
-	{  5, "iPod3,1",    "n18ap",  2,  8922,
+	{  5, "iPod3,1",    "n18ap",  2,  8922,  "n18",  "iPod touch 3",
 	"http://appldnld.apple.com/iPhone4/061-7941.20100908.sV9KE/iPod3,1_4.1_8B117_Restore.ipsw" },
-	{  6, "iPad1,1",    "k48ap",  2,  8930,
+	{  6, "iPad1,1",    "k48ap",  2,  8930,  "k48",  "iPad 1",
 	"http://appldnld.apple.com/iPad/061-8801.20100811.CvfR5/iPad1,1_3.2.2_7B500_Restore.ipsw" },
-	{  7, "iPhone3,1",  "n90ap",  0,  8930,
+	{  7, "iPhone3,1",  "n90ap",  0,  8930,  "n90",  "iPhone 4",
 	"http://appldnld.apple.com/iPhone4/061-7939.20100908.Lcyg3/iPhone3,1_4.1_8B117_Restore.ipsw" },
-	{  8, "iPod4,1",    "n81ap",  8,  8930,
+	{  8, "iPod4,1",    "n81ap",  8,  8930,  "n81",  "iPod touch 4",
 	"http://appldnld.apple.com/iPhone4/061-8490.20100901.hyjtR/iPod4,1_4.1_8B117_Restore.ipsw" },
-	{  9, "AppleTV2,1", "k66ap", 10,  8930,
+	{  9, "AppleTV2,1", "k66ap", 10,  8930,  "k66",  "Apple TV 2",
 	"http://appldnld.apple.com/AppleTV/061-8940.20100926.Tvtnz/AppleTV2,1_4.1_8M89_Restore.ipsw" },
-	{ -1,  NULL,        NULL,   -1,    -1,
+	{ 10, "iPhone3,3",  "n92ap",  6,  8930,  "n92",  "iPhone 4 [CDMA]",
+	"http://appldnld.apple.com/iPhone4/041-0177.20110131.Pyvrz/iPhone3,3_4.2.6_8E200_Restore.ipsw" },
+	{ -1,  NULL,        NULL,   -1,    -1,  "NULL",  "NULL",
 	NULL }
 };
 
@@ -228,6 +235,8 @@ LIBIRECOVERY_EXPORT irecv_error_t irecv_set_interface(irecv_client_t client, int
 LIBIRECOVERY_EXPORT irecv_error_t irecv_get_cpid(irecv_client_t client, unsigned int* cpid);
 LIBIRECOVERY_EXPORT irecv_error_t irecv_get_bdid(irecv_client_t client, unsigned int* bdid);
 LIBIRECOVERY_EXPORT irecv_error_t irecv_get_ecid(irecv_client_t client, unsigned long long* ecid);
+LIBIRECOVERY_EXPORT irecv_error_t irecv_get_srnm(irecv_client_t client, unsigned char* srnm);
+LIBIRECOVERY_EXPORT irecv_error_t irecv_get_imei(irecv_client_t client, unsigned char* imei);
 LIBIRECOVERY_EXPORT void irecv_hexdump(unsigned char* buf, unsigned int len, unsigned int addr);
 
 LIBIRECOVERY_EXPORT void irecv_init();
