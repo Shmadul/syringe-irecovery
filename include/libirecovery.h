@@ -177,7 +177,7 @@ struct irecv_device {
 	const char* model;
 	unsigned int board_id;
 	unsigned int chip_id;
-	const char* bid;
+	const char* board_config;
 	const char* name;
 	const char* url;
 };

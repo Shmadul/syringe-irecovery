@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
 				ret = irecv_get_device(client, &device);
 				if (ret == IRECV_E_SUCCESS) 
 					 if (argc >= 3) printf("%s", device->model);
-					 else printf("\n%s\n", device->bid);
+					 else printf("\n%s\n", device->board_config);
 				else
 					printf("\nNo device found.\n");
 				irecv_exit();
@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
 				irecv_open_attempts(&client, 10);
 				ret = irecv_get_device(client, &device);
 				if (ret == IRECV_E_SUCCESS) 
-					printf("%s", device->bid);
+					printf("%s", device->board_config);
 				else
 					printf("NoDeviceFound");
 				irecv_exit();
