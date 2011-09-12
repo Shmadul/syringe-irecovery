@@ -345,10 +345,6 @@ int main(int argc, char* argv[]) {
 				printf("\nKilling iTunesHelper.exe\n");
 				system("TASKKILL /F /IM iTunesHelper.exe > NUL");
 			}
-			else if (!strcmp(arg, "-ss"))
-			{
-				printf("\nO.o HIDDEN COMMAND! :O\n\nKeep wondering what it did :P\n");
-			}
 			else
 			{
 				printf("\nInvalid command!\n");
