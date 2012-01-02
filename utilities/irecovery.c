@@ -49,6 +49,17 @@ int progress_cb(irecv_client_t client, const irecv_event_t* event) {
 	return 0;
 }
 
+int poll_device_for_dfu()
+{
+	if (irecv_open_attempts(&client, 10) != IRECV_E_SUCCESS) {
+		return 1;
+	}
+	if (client->mode != kDfuMode) {
+		irecv_close(client);
+		return 1;
+	}
+	return 0;
+}
 
 void print_usage(const char *argv0) {
 	printf("\niRecovery - Recovery Utility\nOriginally made by westbaer\nThanks to pod2g, tom3q, planetbeing, geohot, and posixninja.\n");
@@ -56,17 +67,19 @@ void print_usage(const char *argv0) {
 	printf("\nAnd iH8sn0w's syringe-irecovery: http://github.com/iH8sn0w/syringe-irecovery");
 	printf("\n\nModified by Neal (iNeal). Use it at your own risk.\n\n");
 	printf("Usage: ./%s [args]\n\n", argv0);
-	printf("\t-c <command>\tsend a single command.\n");
-	printf("\t-f <file>\tupload a file (to 0x21,1).\n");
+	printf("\t-c <command>\tSend a single command to client.\n");
+	printf("\t-f <file>\tUpload a file to client.\n");
+	printf("\t-g <var>\tGrab a variable from iBoot.\n");
+	printf("\t-j <script>\tExecutes recovery shell script.\n");
 	printf("\t-i\t\tGet device info. (ECID, BDID, etc.)\n");
-	printf("\t-r\t\tReset the USB counters.\n");
-	printf("\t-detect\t\tGet device id. (n90ap)\n");
+	printf("\t-r\t\tReset USB counters.\n");
+	printf("\t-detect\t\tGet board config. (n90ap)\n");
 	printf("\t-find\t\tFind device in recovery or DFU mode.\n");
 	printf("\t-kick\t\tKick the device out of Recovery Mode.\n");
-	printf("\t================ Exploits ================\n");
-	printf("\t-e\t\tsend limera1n or steaks4uce [bootrom exploits].\n");
-	printf("\t-k <payload>\tsend the 0x21,2 usb exploit. [ < 3.1.2 iBoot exploit].\n");
-	printf("\t==========================================\n");
+	printf("\t================== Exploits ==================\n");
+	printf("\t-e\t\tSend limera1n or steaks4uce [bootrom exploits].\n");
+	printf("\t-k <payload>\tSend the 0x21,2 usb exploit. [ < 3.1.2 iBoot exploit].\n");
+	printf("\t==============================================\n");
 	return;
 }
 
@@ -74,10 +87,14 @@ void print_usage(const char *argv0) {
 int main(int argc, char* argv[]) {
 
 	if(argc < 2)
+	{
 		print_usage(argv[0]);
-	else {
+	}
+	else
+	{
 		char** pArg;
-		for (pArg = argv + 1; pArg < argv + argc; ++pArg) {
+		for (pArg = argv + 1; pArg < argv + argc; ++pArg)
+		{
 			const char* arg = *pArg;
 			int* pIntOpt = NULL;
 			
@@ -89,17 +106,14 @@ int main(int argc, char* argv[]) {
 			{
 				int can_ra1n = 0;
 				unsigned int cpid;
-				irecv_error_t error;
 				irecv_init();
-
 				printf("\n");
-
-				error = irecv_open_attempts(&client, 10);
-				if (error != IRECV_E_SUCCESS) return -error;
-
+				irecv_open_attempts(&client, 10);
 				if (irecv_get_cpid(client, &cpid) == IRECV_E_SUCCESS)
 				{
-					if((cpid > 8900) || (cpid = 8720))	can_ra1n = 1;
+					if((cpid == 8920) || (cpid == 8922) || (cpid == 8930) || (cpid == 8720)) {
+						can_ra1n = 1;
+					}
 				}
 				if (client->mode == kDfuMode && can_ra1n)
 				{
@@ -122,8 +136,8 @@ int main(int argc, char* argv[]) {
 				}
 				else
 				{
-					if(client->mode == kDfuMode) printf("[!] Device not compatible with limera1n or steaks4uce. [!]\n");
-					if(client->mode != kDfuMode) printf("[!] No device found in DFU Mode. [!]\n");
+					if(client->mode == kDfuMode) printf("Device not compatible with limera1n or steaks4uce.\n");
+					if(client->mode != kDfuMode) printf("No device found in DFU Mode.\n");
 				}
 			}
 			else if (!strcmp(arg, "-k"))
@@ -132,16 +146,16 @@ int main(int argc, char* argv[]) {
 					int ret;
 					irecv_open_attempts(&client, 10);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
-					printf("\n[!] Sending USB exploit... [!]\n");
+					printf("\nSending USB exploit...\n");
 					ret = irecv_send_file(client, argv[2],0);
 					if (ret == IRECV_E_SUCCESS) {
 						irecv_send_exploit(client);
-						printf("\n[!] USB exploit sent! [!]\n");
+						printf("\nUSB exploit sent!\n");
 					} else {
-						printf("\n[!] Failed to send the Exploit. Error: %d [!]\n", ret);
+						printf("\nFailed to send the Exploit. Error: %d\n", ret);
 					}
 				} else {
-					printf("\n[!] No payload was specified! [!]\n");
+					printf("\nNo payload was specified!\n");
 				}
 			}
 			else if (!strcmp(arg, "-c"))
@@ -190,6 +204,24 @@ int main(int argc, char* argv[]) {
 					printf("\nNo file was specified.\n");
 				}
 			}
+			else if (!strcmp(arg, "-g"))
+			{
+				if (argc >= 3) {
+					int ret;
+					char* value = NULL;
+					irecv_open_attempts(&client, 10);
+					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
+					ret = irecv_getenv(client, argv[2], &value);
+					if (ret != IRECV_E_SUCCESS)
+						printf("Failed to get the variable! Error: %d\n", ret);
+                    else
+						printf("%s\n", value);
+                    free(value);
+					irecv_exit();
+				} else {
+					printf("\nNo variable was specified.\n");
+				}
+			}
 			else if (!strcmp(arg, "-i"))
 			{
 				int ret;
@@ -233,10 +265,44 @@ int main(int argc, char* argv[]) {
 				} else if (ret == IRECV_E_NO_DEVICE) {
 					printf("\nNo device found.\n\n");
 				} else {
-					printf("\nFailed to reset USB counters...\n\n");
+					printf("\nFailed to reset USB counters... Error: %d\n\n", ret);
 				}
 				irecv_exit();
 				irecv_reconnect(client, 10);
+			}
+			else if (!strcmp(arg, "-j"))
+			{
+				if (argc >= 3) {
+					int ret;
+					irecv_open_attempts(&client, 10);
+					ret = irecv_execute_script(client, argv[2]);
+					if (ret == IRECV_E_SUCCESS)
+						printf("\nScript executed successfully!\n");
+					else
+						printf("\nFailed to execute script! Error: %d\n\n", ret);
+					irecv_exit();
+				} else {
+					printf("\nNo script was specified.\n");
+				}
+			}
+			else if (!strcmp(arg, "-ecid")) // doesn't work yet.
+			{
+				int ret;
+				unsigned long long ecid;
+				irecv_open_attempts(&client, 10);
+				ret = irecv_get_ecid(client,&ecid);
+				//printf("ret: %d", ret);
+                printf("ECID:%lld", ecid);
+				irecv_close(client);
+			}
+			else if (!strcmp(arg, "-dfu"))
+			{
+				while (poll_device_for_dfu()) {
+					sleep(1);
+				}
+				irecv_open_attempts(&client, 10);
+				irecv_get_device(client, &device);
+				printf("%s\n", device->product);
 			}
 			else if (!strcmp(arg, "-find"))
 			{
@@ -244,7 +310,7 @@ int main(int argc, char* argv[]) {
 				irecv_open_attempts(&client, 10);
 
 				if (client->mode == kDfuMode)
-				{	
+				{
 					ret = irecv_get_device(client, &device);
 					if (ret == IRECV_E_SUCCESS)
 						printf("\n%s found in DFU Mode.\n\n", device->product);
@@ -269,9 +335,9 @@ int main(int argc, char* argv[]) {
 				int ret;
 				irecv_open_attempts(&client, 10);
 				ret = irecv_get_device(client, &device);
-				if (ret == IRECV_E_SUCCESS) 
-					 if (argc >= 3) printf("%s", device->model);
-					 else printf("\n%s\n", device->board_config);
+				if (ret == IRECV_E_SUCCESS)
+					if (argc >= 3) printf("%s", device->model);
+					else printf("\n%s\n", device->board_id);
 				else
 					printf("\nNo device found.\n");
 				irecv_exit();
@@ -293,7 +359,7 @@ int main(int argc, char* argv[]) {
 				irecv_open_attempts(&client, 10);
 				ret = irecv_get_device(client, &device);
 				if (ret == IRECV_E_SUCCESS) 
-					printf("%s", device->board_config);
+					printf("%c%c%c", device->model[0], device->model[1], device->model[2]);
 				else
 					printf("NoDeviceFound");
 				irecv_exit();
@@ -303,10 +369,26 @@ int main(int argc, char* argv[]) {
 				int ret;
 				irecv_open_attempts(&client, 10);
 				ret = irecv_get_device(client, &device);
-				if (ret == IRECV_E_SUCCESS) 
+				if (ret == IRECV_E_SUCCESS)
 					printf("%s", device->name);
 				else
 					printf("NoDeviceFound");
+				irecv_exit();
+			}
+			else if (!strcmp(arg, "-getdevicenameindfu"))
+			{
+				int ret;
+				irecv_open_attempts(&client, 10);
+				ret = irecv_get_device(client, &device);
+				if (ret == IRECV_E_SUCCESS) {
+					if (client->mode == kDfuMode)
+						printf("%s", device->name);
+					else
+						printf("NoDeviceFound");
+				}
+				else {
+					printf("NoDeviceFound");
+				}
 				irecv_exit();
 			}
 			else if (!strcmp(arg, "-kick"))

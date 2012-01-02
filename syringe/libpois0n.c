@@ -86,7 +86,7 @@ int pois0n_is_ready() {
 	// Check device
 	// debug("Checking the device mode\n");
 	if (client->mode != kDfuMode) {
-		error("[.] Searching for DFU... [.]\n");
+		error("Searching for DFU...\n");
 		irecv_close(client);
 		return -1;
 	}
@@ -129,9 +129,9 @@ int pois0n_injectonly() {
 	// Send exploit
 	if (device->chip_id == 8930) {
 #ifdef LIMERA1N
-		debug("[!] Exploiting with limera1n... [!]\n");
+		debug("Exploiting with limera1n...\n");
 		if (limera1n_exploit() < 0) {
-			error("[!] Exploiting with limera1n FAILED. [!]\n");
+			error("FAILED exploiting with limera1n!\n");
 			return -1;
 		}
 #else
@@ -141,9 +141,9 @@ int pois0n_injectonly() {
 	}
 	else if (device->chip_id == 8920 || device->chip_id == 8922) {
 #ifdef LIMERA1N
-		debug("[!] Exploiting with limera1n... [!]\n");
+		debug("Exploiting with limera1n...\n");
 		if (limera1n_exploit() < 0) {
-			error("[!] Exploiting with limera1n FAILED. [!]\n");
+			error("FAILED exploiting with limera1n!\n");
 			return -1;
 		}
 #else
@@ -153,9 +153,9 @@ int pois0n_injectonly() {
 	}
 	else if (device->chip_id == 8720) {
 #ifdef STEAKS4UCE
-		debug("[!] Exploiting with steaks4uce... [!]\n");
+		debug("Exploiting with steaks4uce...\n");
 		if (steaks4uce_exploit() < 0) {
-			error("[!] Exploiting with steaks4uce FAILED. [!]\n");
+			error("FAILED exploiting with steaks4uce!\n");
 			return -1;
 		}
 #else
@@ -165,9 +165,9 @@ int pois0n_injectonly() {
 	}
 	else if (device->chip_id == 8900) {
 #ifdef PWNAGE2
-		debug("[!] Exploiting with pwnage2... [!]\n");
+		debug("Exploiting with pwnage2...\n");
 		if(pwnage2_exploit() < 0) {
-			error("[!] Exploiting with pwnage2 FAILED. [!]\n");
+			error("FAILED exploiting with pwnage2!\n");
 			return -1;
 		}
 #else
@@ -180,5 +180,6 @@ int pois0n_injectonly() {
 		error("Sorry, this device is not currently supported\n");
 		return -1;
 	}
+
 	return 0;
 }
