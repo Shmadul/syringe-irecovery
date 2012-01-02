@@ -224,7 +224,7 @@ static const struct irecv_device irecv_devices[] = {
 	"http://appldnld.apple.com/iPhone4/041-3312.20111109.zp3ws/iPad2,3_5.0.1_9A405_Restore.ipsw" },
 	{ 14, "iPhone4,1",  "n94ap",  8,  8940,  "iPhone 4S",
 	"http://appldnld.apple.com/iPhone4/041-3417.20111215.Slnt4/iPhone4,1_5.0.1_9A406_Restore.ipsw" },
-	{ -1,  NULL,        NULL,    -1,    -1,  "NULL",
+	{ -1,  NULL,         NULL,   -1,    -1,  "NULL",
 	NULL }
 };
 

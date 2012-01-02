@@ -65,7 +65,7 @@ void print_usage(const char *argv0) {
 	printf("\niRecovery - Recovery Utility\nOriginally made by westbaer\nThanks to pod2g, tom3q, planetbeing, geohot, and posixninja.\n");
 	printf("\nThis is based off syringe available at: http://github.com/posixninja/syringe");
 	printf("\nAnd iH8sn0w's syringe-irecovery: http://github.com/iH8sn0w/syringe-irecovery");
-	printf("\n\nModified by Neal (iNeal). Use it at your own risk.\n\n");
+	printf("\n\nModified by Neal (@iNeal) - http://github.com/Neal/syringe-irecovery \n\n");
 	printf("Usage: ./%s [args]\n\n", argv0);
 	printf("\t-c <command>\tSend a single command to client.\n");
 	printf("\t-f <file>\tUpload a file to client.\n");
@@ -285,7 +285,7 @@ int main(int argc, char* argv[]) {
 					printf("\nNo script was specified.\n");
 				}
 			}
-			else if (!strcmp(arg, "-ecid")) // doesn't work yet.
+			else if (!strcmp(arg, "-ecid")) // still need to fix it - probably won't work right.
 			{
 				int ret;
 				unsigned long long ecid;
@@ -336,13 +336,12 @@ int main(int argc, char* argv[]) {
 				irecv_open_attempts(&client, 10);
 				ret = irecv_get_device(client, &device);
 				if (ret == IRECV_E_SUCCESS)
-					if (argc >= 3) printf("%s", device->model);
-					else printf("\n%s\n", device->board_id);
+					printf("%s", device->model);
 				else
 					printf("\nNo device found.\n");
 				irecv_exit();
 			}
-			else if (!strcmp(arg, "-getdeviceid"))
+			else if (!strcmp(arg, "-getboardid"))
 			{
 				int ret;
 				irecv_open_attempts(&client, 10);
@@ -353,7 +352,7 @@ int main(int argc, char* argv[]) {
 					printf("NoDeviceFound");
 				irecv_exit();
 			}
-			else if (!strcmp(arg, "-getboardid"))
+			else if (!strcmp(arg, "-getdeviceid"))
 			{
 				int ret;
 				irecv_open_attempts(&client, 10);
