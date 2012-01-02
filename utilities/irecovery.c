@@ -65,7 +65,7 @@ void print_usage(const char *argv0) {
 	printf("\niRecovery - Recovery Utility\nOriginally made by westbaer\nThanks to pod2g, tom3q, planetbeing, geohot, and posixninja.\n");
 	printf("\nThis is based off syringe available at: http://github.com/posixninja/syringe");
 	printf("\nAnd iH8sn0w's syringe-irecovery: http://github.com/iH8sn0w/syringe-irecovery");
-	printf("\n\nModified by Neal (@iNeal) - http://github.com/Neal/syringe-irecovery \n\n");
+	printf("\n\nModified by Neal (@iNeal) - http://github.com/Neal/syringe-irecovery\n\n");
 	printf("Usage: ./%s [args]\n\n", argv0);
 	printf("\t-c <command>\tSend a single command to client.\n");
 	printf("\t-f <file>\tUpload a file to client.\n");
@@ -214,9 +214,9 @@ int main(int argc, char* argv[]) {
 					ret = irecv_getenv(client, argv[2], &value);
 					if (ret != IRECV_E_SUCCESS)
 						printf("Failed to get the variable! Error: %d\n", ret);
-                    else
+					else
 						printf("%s\n", value);
-                    free(value);
+					free(value);
 					irecv_exit();
 				} else {
 					printf("\nNo variable was specified.\n");
@@ -292,7 +292,7 @@ int main(int argc, char* argv[]) {
 				irecv_open_attempts(&client, 10);
 				ret = irecv_get_ecid(client,&ecid);
 				//printf("ret: %d", ret);
-                printf("ECID:%lld", ecid);
+				printf("ECID:%lld", ecid);
 				irecv_close(client);
 			}
 			else if (!strcmp(arg, "-dfu"))
