@@ -37,8 +37,6 @@
 
 #include "libirecovery.h"
 
-#define USB_TIMEOUT 5000
-
 #define BUFFER_SIZE 0x1000
 
 static int libirecovery_debug = 0;
@@ -323,7 +321,7 @@ int irecv_get_string_descriptor_ascii(irecv_client_t client, uint8_t desc_index,
 	memset(data, 0, sizeof(data));
 	memset(buffer, 0, size);
 
-	ret = irecv_control_transfer(client, 0x80, 0x06, (0x03 << 8) | desc_index, langid, data, sizeof(data), USB_TIMEOUT);
+	ret = irecv_control_transfer(client, 0x80, 0x06, (0x03 << 8) | desc_index, langid, data, sizeof(data), 1000);
 	
 	if (ret < 0) return ret;
 	if (data[1] != 0x03) return IRECV_E_UNKNOWN_ERROR;
@@ -606,7 +604,7 @@ static irecv_error_t irecv_send_command_raw(irecv_client_t client, const char* c
 	}
 
 	if (length > 0) {
-		irecv_control_transfer(client, 0x40, 0, 0, 0, (unsigned char*) command, length + 1, USB_TIMEOUT);
+		irecv_control_transfer(client, 0x40, 0, 0, 0, (unsigned char*) command, length + 1, 1000);
 	}
 
 	return IRECV_E_SUCCESS;
@@ -689,7 +687,7 @@ irecv_error_t irecv_get_status(irecv_client_t client, unsigned int* status) {
 
 	unsigned char buffer[6];
 	memset(buffer, '\0', 6);
-	if (irecv_control_transfer(client, 0xA1, 3, 0, 0, buffer, 6, USB_TIMEOUT) != 6) {
+	if (irecv_control_transfer(client, 0xA1, 3, 0, 0, buffer, 6, 1000) != 6) {
 		*status = 0;
 		return IRECV_E_USB_STATUS;
 	}
@@ -703,7 +701,7 @@ irecv_error_t irecv_send_buffer(irecv_client_t client, unsigned char* buffer, un
 	int recovery_mode = (client->mode != kDfuMode);
 	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
 
-	int packet_size = 32768;
+	int packet_size = 0x800;
 	int last = length % packet_size;
 	int packets = length / packet_size;
 	if (last != 0) {
@@ -714,7 +712,7 @@ irecv_error_t irecv_send_buffer(irecv_client_t client, unsigned char* buffer, un
 
 	/* initiate transfer */
 	if (recovery_mode) {
-		int ret = irecv_control_transfer(client, 0x41, 0, 0, 0, NULL, 0, USB_TIMEOUT);
+		int ret = irecv_control_transfer(client, 0x41, 0, 0, 0, NULL, 0, 1000);
 		if (ret < 0) {
 			error = IRECV_E_UNKNOWN_ERROR;
 			return error;
@@ -731,11 +729,11 @@ irecv_error_t irecv_send_buffer(irecv_client_t client, unsigned char* buffer, un
 
 		/* Use bulk transfer for recovery mode and control transfer for DFU and WTF mode */
 		if (recovery_mode) {
-			int ret = irecv_bulk_transfer(client, 0x04, &buffer[i * packet_size], size, &bytes, USB_TIMEOUT);
+			int ret = irecv_bulk_transfer(client, 0x04, &buffer[i * packet_size], size, &bytes, 1000);
 			if (ret < 0)
 				error = IRECV_E_UNKNOWN_ERROR;
 		} else {
-			bytes = irecv_control_transfer(client, 0x21, 1, 0, 0, &buffer[i * packet_size], size, USB_TIMEOUT);
+			bytes = irecv_control_transfer(client, 0x21, 1, 0, 0, &buffer[i * packet_size], size, 1000);
 		}
 
 		if (bytes != size) {
@@ -768,7 +766,7 @@ irecv_error_t irecv_send_buffer(irecv_client_t client, unsigned char* buffer, un
 	}
 
 	if (dfuNotifyFinished && !recovery_mode) {
-		irecv_control_transfer(client, 0x21, 1, 0, 0, (unsigned char*) buffer, 0, USB_TIMEOUT);
+		irecv_control_transfer(client, 0x21, 1, 0, 0, (unsigned char*) buffer, 0, 1000);
 
 		for (i = 0; i < 3; i++) {
 			error = irecv_get_status(client, &status);
@@ -788,7 +786,8 @@ irecv_error_t irecv_receive(irecv_client_t client) {
 	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
 	
 	int bytes = 0;
-	while (irecv_bulk_transfer(client, 0x81, (unsigned char*) buffer, BUFFER_SIZE, &bytes, USB_TIMEOUT) == 0) {
+
+	while (irecv_bulk_transfer(client, 0x81, (unsigned char*) buffer, BUFFER_SIZE, &bytes, 1000) == 0) {
 		if (bytes > 0) {
 			if (client->received_callback != NULL) {
 				irecv_event_t event;
@@ -831,7 +830,7 @@ irecv_error_t irecv_getenv(irecv_client_t client, const char* variable, char** v
 	}
 
 	memset(response, '\0', 256);
-	ret = irecv_control_transfer(client, 0xC0, 0, 0, 0, (unsigned char*) response, 255, USB_TIMEOUT);
+	ret = irecv_control_transfer(client, 0xC0, 0, 0, 0, (unsigned char*) response, 255, 1000);
 
 	*value = response;
 	return IRECV_E_SUCCESS;
@@ -848,7 +847,7 @@ irecv_error_t irecv_getret(irecv_client_t client, unsigned int* value) {
 	}
 
 	memset(response, '\0', 256);
-	ret = irecv_control_transfer(client, 0xC0, 0, 0, 0, (unsigned char*) response, 255, USB_TIMEOUT);
+	ret = irecv_control_transfer(client, 0xC0, 0, 0, 0, (unsigned char*) response, 255, 1000);
 
 	*value = ret;
 	printf("irecv_getret: returning 0x%X\n", ret);
@@ -881,7 +880,7 @@ irecv_error_t irecv_get_bdid(irecv_client_t client, unsigned int* bdid) {
 	return IRECV_E_SUCCESS;
 }
 
-irecv_error_t irecv_get_ecid(irecv_client_t client, unsigned long long* ecid) {
+irecv_error_t irecv_get_ecid(irecv_client_t client, unsigned char* ecid) {
 	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
 
 	char* ecid_string = strstr(client->serial, "ECID:");
@@ -889,7 +888,7 @@ irecv_error_t irecv_get_ecid(irecv_client_t client, unsigned long long* ecid) {
 		*ecid = 0;
 		return IRECV_E_UNKNOWN_ERROR;
 	}
-	sscanf(ecid_string, "ECID:%qX", ecid);
+	sscanf(ecid_string, "ECID:%s", ecid);
 
 	return IRECV_E_SUCCESS;
 }
@@ -903,7 +902,7 @@ irecv_error_t irecv_get_srnm(irecv_client_t client, unsigned char* srnm) {
 		srnm = NULL;
 		return IRECV_E_UNKNOWN_ERROR;
 	}
-	sscanf(srnm_string, "SRNM:[%s]", srnm);
+	sscanf(srnm_string, "SRNM:[%[^]]]", srnm);
 
 	return IRECV_E_SUCCESS;
 }
@@ -917,14 +916,14 @@ irecv_error_t irecv_get_imei(irecv_client_t client, unsigned char* imei) {
 		*imei = 0;
 		return IRECV_E_UNKNOWN_ERROR;
 	}
-	sscanf(imei_string, "IMEI:[%s]", imei);
+	sscanf(imei_string, "IMEI:[%[^]]]", imei);
 
 	return IRECV_E_SUCCESS;
 }
 
 irecv_error_t irecv_send_exploit(irecv_client_t client) {
 	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
-	irecv_control_transfer(client, 0x21, 2, 0, 0, NULL, 0, USB_TIMEOUT);
+	irecv_control_transfer(client, 0x21, 2, 0, 0, NULL, 0, 1000);
 	return IRECV_E_SUCCESS;
 }
 
@@ -1093,7 +1092,7 @@ int irecv_read_file(const char* filename, char** data, uint32_t* size) {
 irecv_error_t irecv_reset_counters(irecv_client_t client) {
 	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
 	if (client->mode == kDfuMode) {
-		irecv_control_transfer(client, 0x21, 4, 0, 0, 0, 0, USB_TIMEOUT);
+		irecv_control_transfer(client, 0x21, 4, 0, 0, 0, 0, 1000);
 	}
 	return IRECV_E_SUCCESS;
 }
@@ -1120,7 +1119,7 @@ irecv_error_t irecv_recv_buffer(irecv_client_t client, char* buffer, unsigned lo
 	//unsigned int status = 0;
 	for (i = 0; i < packets; i++) {
 		unsigned short size = (i+1) < packets ? packet_size : last;
-		bytes = irecv_control_transfer(client, 0xA1, 2, 0, 0, (unsigned char*)(buffer + i * packet_size), size, USB_TIMEOUT);
+		bytes = irecv_control_transfer(client, 0xA1, 2, 0, 0, (unsigned char*)(buffer + i * packet_size), size, 1000);
 		
 		if (bytes != size) {
 			return IRECV_E_USB_UPLOAD;
@@ -1148,7 +1147,7 @@ irecv_error_t irecv_finish_transfer(irecv_client_t client) {
 
 	if (check_context(client) != IRECV_E_SUCCESS) return IRECV_E_NO_DEVICE;
 
-	irecv_control_transfer(client, 0x21, 1, 0, 0, 0, 0, USB_TIMEOUT);
+	irecv_control_transfer(client, 0x21, 1, 0, 0, 0, 0, 1000);
 
 	for(i = 0; i < 3; i++){
 		irecv_get_status(client, &status);
@@ -1175,24 +1174,39 @@ irecv_error_t irecv_get_device(irecv_client_t client, irecv_device_t* device) {
 		}
 
 		switch (bdid) {
-			case BDID_IPHONE2G: device_id = DEVICE_IPHONE2G; break;
+		case BDID_IPHONE2G:
+			device_id = DEVICE_IPHONE2G;
+			break;
 
-			case BDID_IPHONE3G: device_id = DEVICE_IPHONE3G; break;
+		case BDID_IPHONE3G:
+			device_id = DEVICE_IPHONE3G;
+			break;
 
-			case BDID_IPOD1G: device_id = DEVICE_IPOD1G; break;
+		case BDID_IPOD1G:
+			device_id = DEVICE_IPOD1G;
+			break;
 
-			default: device_id = DEVICE_UNKNOWN; break;
+		default:
+			device_id = DEVICE_UNKNOWN;
+			break;
 		}
 		break;
 
-	case CPID_IPHONE3GS: device_id = DEVICE_IPHONE3GS; break;
+	case CPID_IPHONE3GS:
+		device_id = DEVICE_IPHONE3GS;
+		break;
 
-	case CPID_IPOD2G: device_id = DEVICE_IPOD2G; break;
+	case CPID_IPOD2G:
+		device_id = DEVICE_IPOD2G;
+		break;
 
-	case CPID_IPOD3G: device_id = DEVICE_IPOD3G; break;
+	case CPID_IPOD3G:
+		device_id = DEVICE_IPOD3G;
+		break;
 
 	case CPID_IPAD1G:
-		// iPhone3,1 iPhone3,3 iPod4,1 and iPad1,1 share the same ChipID, so we need to check the BoardID
+		// iPhone3,1 iPad4,1 and iPad1,1 all share the same ChipID
+		//   so we need to check the BoardID
 		if (irecv_get_bdid(client, &bdid) < 0) {
 			break;
 		}
@@ -1213,38 +1227,9 @@ irecv_error_t irecv_get_device(irecv_client_t client, irecv_device_t* device) {
 		case BDID_APPLETV2:
 			device_id = DEVICE_APPLETV2;
 			break;
-
+			
 		case BDID_IPHONE42:
 			device_id = DEVICE_IPHONE42;
-			break;
-
-		default:
-			device_id = DEVICE_UNKNOWN;
-			break;
-		}
-		break;
-
-	case CPID_IPAD21:
-		// iPad2,1 iPad2,2 iPad2,3 and iPhone4,1 share the same ChipID, so we need to check the BoardID
-		if (irecv_get_bdid(client, &bdid) < 0) {
-			break;
-		}
-
-		switch (bdid) {
-		case BDID_IPAD21:
-			device_id = DEVICE_IPAD21;
-			break;
-
-		case BDID_IPAD22:
-			device_id = DEVICE_IPAD22;
-			break;
-
-		case BDID_IPAD23:
-			device_id = DEVICE_IPAD23;
-			break;
-
-		case BDID_IPHONE4S:
-			device_id = DEVICE_IPHONE4S;
 			break;
 
 		default:
@@ -1272,6 +1257,7 @@ irecv_client_t irecv_reconnect(irecv_client_t client, int initial_pause) {
 	}
 
 	if (initial_pause > 0) {
+		debug("Waiting %d seconds for the device to pop up...\n", initial_pause);
 		sleep(initial_pause);
 	}
 	
