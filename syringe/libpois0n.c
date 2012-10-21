@@ -30,7 +30,6 @@
 
 #define LIMERA1N
 #define STEAKS4UCE
-//#define PWNAGE2
 
 static pois0n_callback progress_callback = NULL;
 static void* user_object = NULL;
@@ -163,19 +162,6 @@ int pois0n_injectonly() {
 		return -1;
 #endif
 	}
-	else if (device->chip_id == 8900) {
-#ifdef PWNAGE2
-		debug("Exploiting with pwnage2...\n");
-		if(pwnage2_exploit() < 0) {
-			error("FAILED exploiting with pwnage2!\n");
-			return -1;
-		}
-#else
-		error("Sorry, this device is not currently supported\n");
-		return -1;
-#endif
-	}
-
 	else {
 		error("Sorry, this device is not currently supported\n");
 		return -1;

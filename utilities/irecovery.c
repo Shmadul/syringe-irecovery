@@ -24,7 +24,6 @@
 #include "libirecovery.h"
 #include "libpois0n.h"
 
-#define _VERSION "1.00"
 #define FILE_HISTORY_PATH ".irecovery"
 #define debug(...) fprintf(stderr, __VA_ARGS__)
 static unsigned int quit = 0;
@@ -84,24 +83,26 @@ void init_shell(irecv_client_t client)
 }
 
 void print_usage(const char *argv0) {
-	printf("\niRecovery - Recovery Utility - Originally made by westbaer\nThanks to pod2g, tom3q, planetbeing, geohot, and posixninja.\n");
-	printf("\nThis is based off syringe available at: http://github.com/posixninja/syringe");
-	printf("\nAnd iH8sn0w's syringe-irecovery: http://github.com/iH8sn0w/syringe-irecovery");
-	printf("\n\nModified by Neal (@iNeal) - http://github.com/Neal/syringe-irecovery\n\n");
-	printf("Usage: ./%s [args]\n\n", argv0);
-	printf("  -c <command>      Send a single command to client.\n");
-	printf("  -detect           Get board config. (eg. n90ap)\n");
-	printf("  -dfu              Poll device for DFU mode.\n");
-	printf("  -e                Send limera1n or steaks4uce [bootrom exploits].\n");
-	printf("  -ecid             Get the devices' ecid.\n");
-	printf("  -f <file>         Upload a file to client.\n");
-	printf("  -find             Find device in recovery or DFU mode.\n");
-	printf("  -g <var>          Grab a variable from iBoot.\n");
-	printf("  -i                Get device info. (CPID, ECID, etc.)\n");
-	printf("  -j <script>       Executes recovery shell script.\n");
-	printf("  -k <payload>      Send the 0x21,2 usb exploit [ < 3.1.2 iBoot exploit].\n");
-	printf("  -kick             Kick the device out of Recovery Mode.\n");
-	printf("  -r                Reset USB counters.\n");
+	printf("iRecovery - Recovery Utility - Originally made by westbaer\n" \
+			"Thanks to pod2g, tom3q, planetbeing, geohot, and posixninja.\n\n" \
+			"This is based off syringe available at: http://github.com/posixninja/syringe\n" \
+			"And iH8sn0w's syringe-irecovery: http://github.com/iH8sn0w/syringe-irecovery\n\n" \
+			"Modified by Neal (@iNeal) - http://github.com/Neal/syringe-irecovery\n\n" \
+			"Usage: %s [args]\n\n" \
+			"  -c <command>      Send a single command to client.\n" \
+			"  -detect           Get board config. (eg. n90ap)\n" \
+			"  -dfu              Poll device for DFU mode.\n" \
+			"  -e                Send limera1n or steaks4uce [bootrom exploits].\n" \
+			"  -ecid             Get the device ecid.\n" \
+			"  -f <file>         Upload a file to client.\n" \
+			"  -find             Find device in Recovery/iBoot or DFU mode.\n" \
+			"  -g <var>          Grab a nvram variable from iBoot. (getenv)\n" \
+			"  -i                Get device info. (CPID, ECID, etc.)\n" \
+			"  -j <script>       Executes recovery shell script.\n" \
+			"  -k <payload>      Send the 0x21,2 usb exploit [ < 3.1.2 iBoot exploit].\n" \
+			"  -kick             Kick the device out of Recovery Mode.\n" \
+			"  -r                Reset USB counters.\n" \
+			"\n" , argv0);
 	return;
 }
 
@@ -122,6 +123,66 @@ int main(int argc, char* argv[]) {
 			if (!strcmp(arg, "-h") || !strcmp(arg, "-help"))
 			{
 				print_usage(argv[0]);
+			}
+			else if (!strcmp(arg, "-b"))
+			{
+				if (argc >= 4)
+                {
+                    int inDFU = 1;
+                    int iniBoot = 1;
+                    
+                    irecv_init();
+                    printf("Waiting for device in DFU mode...\n");
+                    while (!inDFU) {
+                        if (irecv_open(&client) == IRECV_E_SUCCESS) {
+                            irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
+                            if (client->mode == kDfuMode) {
+                                irecv_close(client);
+                                inDFU = 0;
+                            }
+                        }
+                        sleep(1);
+                    }
+                    
+                    irecv_open_attempts(&client, 10);
+                    irecv_get_device(client, &device);
+                    printf("Found %s\n", device->product);
+                    irecv_close(client);
+                    irecv_exit();
+                    
+                    pois0n_init();
+                    pois0n_set_callback(&progress_cb, NULL);
+                    if(!pois0n_is_ready() && !pois0n_is_compatible())
+                        pois0n_injectonly();
+                    pois0n_exit();
+                    
+                    sleep(2);
+					irecv_init();
+					irecv_open_attempts(&client, 10);
+					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
+					printf("Uploading iBSS to %s.\n", device->product);
+					irecv_send_file(client, argv[2], 1);
+//					irecv_exit();
+#ifdef _WIN32
+                    sleep(7);
+#endif
+//					irecv_init();
+//					irecv_open_attempts(&client, 10);
+                    client = irecv_reconnect(client, 0);
+					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
+					printf("Uploading iBSS payload to %s.\n", device->product);
+                    irecv_send_file(client, argv[3], 0);
+                    
+                    sleep(1);
+                    irecv_send_command(client, "go");
+                    irecv_send_command(client, "go fbclear");
+                    irecv_send_command(client, "go nvram set iKGD true");
+                    irecv_send_command(client, "go fbecho Success!");
+					irecv_exit();
+                    
+                } else {
+					printf("usage: %s -p <iBSS> <payload>\n", argv[0]);
+                }
 			}
 			else if (!strcmp(arg, "-e"))
 			{
@@ -146,6 +207,7 @@ int main(int argc, char* argv[]) {
 			{
 				if (argc >= 3) {
 					irecv_error_t error;
+					irecv_init();
 					irecv_open_attempts(&client, 10);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
 					printf("\nSending USB exploit...\n");
@@ -183,6 +245,7 @@ int main(int argc, char* argv[]) {
 			{
 				if (argc >= 3) {
 					irecv_error_t error;
+					irecv_init();
 					irecv_open_attempts(&client, 10);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
 					error = irecv_send_command(client, argv[2]);
@@ -199,6 +262,7 @@ int main(int argc, char* argv[]) {
 			{
 				if (argc >= 3) {
 					irecv_error_t error;
+					irecv_init();
 					if (irecv_open_attempts(&client, 10) != IRECV_E_SUCCESS) {
 						printf("\nNo device found in Recovery or DFU Mode.\n");
 						break;
@@ -224,6 +288,7 @@ int main(int argc, char* argv[]) {
 				if (argc >= 3) {
 					irecv_error_t error;
 					char* value = NULL;
+					irecv_init();
 					irecv_open_attempts(&client, 10);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
 					error = irecv_getenv(client, argv[2], &value);
@@ -242,6 +307,7 @@ int main(int argc, char* argv[]) {
 				int i;
 				unsigned int cpid, bdid;
 				unsigned char ecid[20], srnm[16], imei[16];
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				printf("\n");
 
@@ -283,6 +349,7 @@ int main(int argc, char* argv[]) {
 			{
 				if (argc >= 3) {
 					irecv_error_t error;
+					irecv_init();
 					irecv_open_attempts(&client, 10);
 					error = irecv_execute_script(client, argv[2]);
 					if (error == IRECV_E_SUCCESS)
@@ -302,6 +369,7 @@ int main(int argc, char* argv[]) {
 					char* key = NULL;
 					char* GoAesDecCommand = (char*) malloc (110);
 					sprintf(GoAesDecCommand, "go aes dec %s", argv[2]);
+					irecv_init();
 					irecv_open_attempts(&client, 10);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
 					error = irecv_send_command(client, GoAesDecCommand);
@@ -325,6 +393,7 @@ int main(int argc, char* argv[]) {
 				irecv_error_t error;
 				int i;
 				unsigned char ecid[20];
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_ecid(client, ecid);
 				if (error == IRECV_E_SUCCESS)
@@ -341,34 +410,22 @@ int main(int argc, char* argv[]) {
 			{
 				irecv_error_t error;
 				unsigned int cpid;
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_cpid(client, &cpid);
 				if (error == IRECV_E_SUCCESS) printf("s5l%dx\n", cpid);
 				else printf("Failed to get CPID.\n");
 				irecv_close(client);
 			}
-			else if (!strcmp(arg, "-compatible"))
-			{
-				unsigned int cpid;
-				irecv_open_attempts(&client, 10);
-				if (irecv_get_cpid(client, &cpid) == IRECV_E_SUCCESS)
-				{
-					if((cpid == 8920) || (cpid == 8922) || (cpid == 8930) || (cpid == 8720))
-						printf("yes");
-
-					else
-						printf("no");
-				}
-				else printf("no device found");
-				irecv_close(client);
-			}
 			else if (!strcmp(arg, "-dfu"))
 			{
 				char *blah = "Connect device in DFU mode.";
 
+				irecv_init();
 				while (poll_device_for_dfu(blah))
 					sleep(1);
 
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				irecv_get_device(client, &device);
 				fflush(stdout);
@@ -378,6 +435,7 @@ int main(int argc, char* argv[]) {
 			else if (!strcmp(arg, "-find"))
 			{
 				irecv_error_t error;
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_device(client, &device);
 				if (error == IRECV_E_SUCCESS) {
@@ -390,6 +448,7 @@ int main(int argc, char* argv[]) {
 			else if (!strcmp(arg, "-detect"))
 			{
 				irecv_error_t error;
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_device(client, &device);
 				if (error == IRECV_E_SUCCESS)
@@ -401,6 +460,7 @@ int main(int argc, char* argv[]) {
 			else if (!strcmp(arg, "-getboardid"))
 			{
 				irecv_error_t error;
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_device(client, &device);
 				if (error == IRECV_E_SUCCESS) 
@@ -412,6 +472,7 @@ int main(int argc, char* argv[]) {
 			else if (!strcmp(arg, "-getdeviceid"))
 			{
 				irecv_error_t error;
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_device(client, &device);
 				if (error == IRECV_E_SUCCESS) 
@@ -423,6 +484,7 @@ int main(int argc, char* argv[]) {
 			else if (!strcmp(arg, "-kick"))
 			{
 				irecv_error_t error;
+				irecv_init();
 				irecv_open_attempts(&client, 10);
 				if (client->mode == kRecoveryMode1 || 
 					client->mode == kRecoveryMode2 || 
