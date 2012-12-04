@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <readline/history.h>
+#include <readline/readline.h>
 #include "libirecovery.h"
 #include "libpois0n.h"
 
@@ -36,7 +38,7 @@ char *mode_to_string(int mode);
 
 
 void print_progress_bar(double progress) {
-	
+
 	int i = 0;	
 	if(progress < 0) return;
 	if(progress > 100) progress = 100;
@@ -53,30 +55,88 @@ void print_progress_bar(double progress) {
 		printf("\n");
 }
 
+void shell_usage() {
+	printf("Usage:\n");
+	printf("\t/upload <file>\tSend file to client.\n");
+	printf("\t/exploit [file]\tSend usb exploit with optional payload\n");
+	printf("\t/deviceinfo\tShow device information (ECID, IMEI, etc.)\n");
+	printf("\t/help\t\tShow this help.\n");
+	printf("\t/exit\t\tExit interactive shell.\n");
+}
+
+void parse_command(irecv_client_t client, unsigned char* command, unsigned int size) {
+	char* cmd = strdup(command);
+	char* action = strtok(cmd, " ");
+
+	if (!strcmp(cmd, "/exit")) {
+		quit = 1;
+	} else
+
+	if (!strcmp(cmd, "/help")) {
+		shell_usage();
+	} else
+
+	if (!strcmp(cmd, "/upload")) {
+		char* filename = strtok(NULL, " ");
+		debug("Uploading files %s\n", filename);
+		if (filename != NULL ) {
+			irecv_send_file(client, filename, 0);
+		}
+	} else
+
+	if (!strcmp(cmd, "/exploit")) {
+		char* filename = strtok(NULL, " ");
+		debug("Sending exploit %s\n", filename);
+		if (filename != NULL ) {
+			irecv_send_file(client, filename, 0);
+		}
+		irecv_send_exploit(client);
+	} else
+
+	if (!strcmp(cmd, "/execute")) {
+		char* filename = strtok(NULL, " ");
+		debug("Executing script %s\n", filename);
+		if (filename != NULL ) {
+			irecv_execute_script(client, filename);
+		}
+	}
+
+	free(action);
+}
+
+void load_command_history() {
+	read_history(FILE_HISTORY_PATH);
+}
+
+void append_command_to_history(char* cmd) {
+	add_history(cmd);
+	write_history(FILE_HISTORY_PATH);
+}
+
 void init_shell(irecv_client_t client)
 {
-	irecv_error_t error;
-	char *cmd = NULL;
-
-	irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
-	irecv_event_subscribe(client, IRECV_RECEIVED, &received_cb, NULL);
-	irecv_event_subscribe(client, IRECV_PRECOMMAND, &precommand_cb, NULL);
-	irecv_event_subscribe(client, IRECV_POSTCOMMAND, &postcommand_cb, NULL);
-
+	irecv_error_t error = 0;
+	load_command_history();
+	irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL );
+	irecv_event_subscribe(client, IRECV_RECEIVED, &received_cb, NULL );
+	irecv_event_subscribe(client, IRECV_PRECOMMAND, &precommand_cb, NULL );
+	irecv_event_subscribe(client, IRECV_POSTCOMMAND, &postcommand_cb, NULL );
 	while (!quit) {
-		printf("> ");
-		cmd = malloc(512);
-		if(!cmd) {
-			abort();
+		error = irecv_receive(client);
+
+		if (error != IRECV_E_SUCCESS) {
+			debug("%s\n", irecv_strerror(error));
+			break;
 		}
-		memset(cmd, 0, 512);
-		fgets(cmd, 512, stdin);
+
+		char* cmd = readline("> ");
 		if (cmd && *cmd) {
 			error = irecv_send_command(client, cmd);
 			if (error != IRECV_E_SUCCESS) {
 				quit = 1;
 			}
 
+			append_command_to_history(cmd);
 			free(cmd);
 		}
 	}
@@ -102,6 +162,7 @@ void print_usage(const char *argv0) {
 			"  -k <payload>      Send the 0x21,2 usb exploit [ < 3.1.2 iBoot exploit].\n" \
 			"  -kick             Kick the device out of Recovery Mode.\n" \
 			"  -r                Reset USB counters.\n" \
+			"  -s                Start interactive shell.\n" \
 			"\n" , argv0);
 	return;
 }
@@ -162,12 +223,9 @@ int main(int argc, char* argv[]) {
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
 					printf("Uploading iBSS to %s.\n", device->product);
 					irecv_send_file(client, argv[2], 1);
-//					irecv_exit();
 #ifdef _WIN32
                     sleep(7);
 #endif
-//					irecv_init();
-//					irecv_open_attempts(&client, 10);
                     client = irecv_reconnect(client, 0);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
 					printf("Uploading iBSS payload to %s.\n", device->product);
@@ -230,7 +288,6 @@ int main(int argc, char* argv[]) {
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_device(client, &device);
 				if (error == IRECV_E_SUCCESS) {
-					printf("iBoot information: %s\n", client->serial);
 					printf("Starting shell...\n");
 					irecv_reset(client);
 					client = irecv_reconnect(client, 2);
@@ -238,7 +295,7 @@ int main(int argc, char* argv[]) {
 					irecv_set_interface(client, 1, 1);
 					init_shell(client);
 				} else {
-					printf("No device found. err %d\n", error);
+					printf("No device found. Error %d\n", (int) error);
 				}
 			}
 			else if (!strcmp(arg, "-c"))
@@ -565,19 +622,18 @@ int poll_device_for_dfu(const char *text)
 	return 0;
 }
 
-int progress_cb(irecv_client_t client, const irecv_event_t* event)
-{
-	if (event->type == IRECV_PROGRESS)
+int progress_cb(irecv_client_t client, const irecv_event_t* event) {
+	if (event->type == IRECV_PROGRESS) {
 		print_progress_bar(event->progress);
+	}
 	return 0;
 }
 
-int received_cb(irecv_client_t client, const irecv_event_t * event)
-{
+int received_cb(irecv_client_t client, const irecv_event_t* event) {
 	if (event->type == IRECV_RECEIVED) {
 		int i = 0;
 		int size = event->size;
-		char *data = (char *)event->data;
+		char* data = event->data;
 		for (i = 0; i < size; i++) {
 			printf("%c", data[i]);
 		}
@@ -585,17 +641,22 @@ int received_cb(irecv_client_t client, const irecv_event_t * event)
 	return 0;
 }
 
-int precommand_cb(irecv_client_t client, const irecv_event_t * event)
-{
+int precommand_cb(irecv_client_t client, const irecv_event_t* event) {
+	if (event->type == IRECV_PRECOMMAND) {
+		irecv_error_t error = 0;
+		if (event->data[0] == '/') {
+			parse_command(client, event->data, event->size);
+			return -1;
+		}
+	}
 	return 0;
 }
 
-int postcommand_cb(irecv_client_t client, const irecv_event_t * event)
-{
-	char *value = NULL;
-	char *action = NULL;
-	char *command = NULL;
-	char *argument = NULL;
+int postcommand_cb(irecv_client_t client, const irecv_event_t* event) {
+	char* value = NULL;
+	char* action = NULL;
+	char* command = NULL;
+	char* argument = NULL;
 	irecv_error_t error = IRECV_E_SUCCESS;
 
 	if (event->type == IRECV_POSTCOMMAND) {
@@ -605,7 +666,7 @@ int postcommand_cb(irecv_client_t client, const irecv_event_t * event)
 			argument = strtok(NULL, " ");
 			error = irecv_getenv(client, argument, &value);
 			if (error != IRECV_E_SUCCESS) {
-				printf("%s\n", irecv_strerror(error));
+				debug("%s\n", irecv_strerror(error));
 				free(command);
 				return error;
 			}
@@ -613,11 +674,12 @@ int postcommand_cb(irecv_client_t client, const irecv_event_t * event)
 			free(value);
 		}
 
-		if (!strcmp(action, "reboot") || !strcmp(action, "/exit")) {
+		if (!strcmp(action, "reboot")) {
 			quit = 1;
 		}
 	}
 
-	if (command) free(command);
+	if (command)
+		free(command);
 	return 0;
 }
