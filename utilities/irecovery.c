@@ -18,11 +18,19 @@
   * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  **/
 
+#ifdef __APPLE__
+#define READLINE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#ifdef READLINE
 #include <readline/history.h>
 #include <readline/readline.h>
+#endif
+
 #include "libirecovery.h"
 #include "libpois0n.h"
 
@@ -104,6 +112,7 @@ void parse_command(irecv_client_t client, unsigned char* command, unsigned int s
 	free(action);
 }
 
+#ifdef READLINE
 void load_command_history() {
 	read_history(FILE_HISTORY_PATH);
 }
@@ -112,31 +121,40 @@ void append_command_to_history(char* cmd) {
 	add_history(cmd);
 	write_history(FILE_HISTORY_PATH);
 }
+#endif
 
 void init_shell(irecv_client_t client)
 {
 	irecv_error_t error = 0;
+	char *cmd = NULL;
+#ifdef READLINE
 	load_command_history();
+#endif
 	irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL );
 	irecv_event_subscribe(client, IRECV_RECEIVED, &received_cb, NULL );
 	irecv_event_subscribe(client, IRECV_PRECOMMAND, &precommand_cb, NULL );
 	irecv_event_subscribe(client, IRECV_POSTCOMMAND, &postcommand_cb, NULL );
+
 	while (!quit) {
-		error = irecv_receive(client);
-
-		if (error != IRECV_E_SUCCESS) {
-			debug("%s\n", irecv_strerror(error));
-			break;
-		}
-
+#ifdef READLINE
 		char* cmd = readline("> ");
+#else
+		printf("> ");
+		cmd = malloc(512);
+		if(!cmd) {
+			abort();
+		}
+		memset(cmd, 0, 512);
+		fgets(cmd, 512, stdin);
+#endif
 		if (cmd && *cmd) {
 			error = irecv_send_command(client, cmd);
 			if (error != IRECV_E_SUCCESS) {
 				quit = 1;
 			}
-
+#ifdef READLINE
 			append_command_to_history(cmd);
+#endif
 			free(cmd);
 		}
 	}
@@ -288,6 +306,9 @@ int main(int argc, char* argv[]) {
 				irecv_open_attempts(&client, 10);
 				error = irecv_get_device(client, &device);
 				if (error == IRECV_E_SUCCESS) {
+#ifndef READLINE
+					printf("iBoot information: %s\n", client->serial);
+#endif
 					printf("Starting shell...\n");
 					irecv_reset(client);
 					client = irecv_reconnect(client, 2);
@@ -642,6 +663,7 @@ int received_cb(irecv_client_t client, const irecv_event_t* event) {
 }
 
 int precommand_cb(irecv_client_t client, const irecv_event_t* event) {
+#ifdef READLINE
 	if (event->type == IRECV_PRECOMMAND) {
 		irecv_error_t error = 0;
 		if (event->data[0] == '/') {
@@ -649,6 +671,7 @@ int precommand_cb(irecv_client_t client, const irecv_event_t* event) {
 			return -1;
 		}
 	}
+#endif
 	return 0;
 }
 
