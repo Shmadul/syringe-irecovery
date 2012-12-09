@@ -206,59 +206,63 @@ int main(int argc, char* argv[]) {
 			else if (!strcmp(arg, "-b"))
 			{
 				if (argc >= 4)
-                {
-                    int inDFU = 1;
-                    int iniBoot = 1;
-                    
-                    irecv_init();
-                    printf("Waiting for device in DFU mode...\n");
-                    while (!inDFU) {
-                        if (irecv_open(&client) == IRECV_E_SUCCESS) {
-                            irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
-                            if (client->mode == kDfuMode) {
-                                irecv_close(client);
-                                inDFU = 0;
-                            }
-                        }
-                        sleep(1);
-                    }
-                    
-                    irecv_open_attempts(&client, 10);
-                    irecv_get_device(client, &device);
-                    printf("Found %s\n", device->product);
-                    irecv_close(client);
-                    irecv_exit();
-                    
-                    pois0n_init();
-                    pois0n_set_callback(&progress_cb, NULL);
-                    if(!pois0n_is_ready() && !pois0n_is_compatible())
-                        pois0n_injectonly();
-                    pois0n_exit();
-                    
-                    sleep(2);
+				{
+					int inDFU = 1;
+					int iniBoot = 1;
+					
+					irecv_init();
+					printf("Waiting for device in DFU mode...\n");
+					while (!inDFU) {
+						if (irecv_open(&client) == IRECV_E_SUCCESS) {
+							irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
+							if (client->mode == kDfuMode) {
+								irecv_close(client);
+								inDFU = 0;
+							}
+						}
+						sleep(1);
+					}
+					
+					irecv_open_attempts(&client, 10);
+					irecv_get_device(client, &device);
+					printf("Found %s\n", device->product);
+					irecv_close(client);
+					irecv_exit();
+					
+					pois0n_init();
+					pois0n_set_callback(&progress_cb, NULL);
+					if(!pois0n_is_ready() && !pois0n_is_compatible())
+						pois0n_injectonly();
+					pois0n_exit();
+					
+					sleep(2);
 					irecv_init();
 					irecv_open_attempts(&client, 10);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
-					printf("Uploading iBSS to %s.\n", device->product);
-					irecv_send_file(client, argv[2], 1);
+					if (!strcmp(argv[2], "dl")) {
+						upload_dfu_image("iBSS");
+					} else {
+						printf("Uploading iBSS to %s.\n", device->product);
+						irecv_send_file(client, argv[2], 1);
+					}
 #ifdef _WIN32
-                    sleep(7);
+					sleep(7);
 #endif
-                    client = irecv_reconnect(client, 0);
+					client = irecv_reconnect(client, 0);
 					irecv_event_subscribe(client, IRECV_PROGRESS, &progress_cb, NULL);
 					printf("Uploading iBSS payload to %s.\n", device->product);
-                    irecv_send_file(client, argv[3], 0);
-                    
-                    sleep(1);
-                    irecv_send_command(client, "go");
-                    irecv_send_command(client, "go fbclear");
-                    irecv_send_command(client, "go nvram set iKGD true");
-                    irecv_send_command(client, "go fbecho Success!");
+					irecv_send_file(client, argv[3], 0);
+					
+					sleep(1);
+					irecv_send_command(client, "go");
+					irecv_send_command(client, "go fbclear");
+					irecv_send_command(client, "go nvram set iKGD true");
+					irecv_send_command(client, "go fbecho Success!");
 					irecv_exit();
-                    
-                } else {
+					
+				} else {
 					printf("usage: %s -p <iBSS> <payload>\n", argv[0]);
-                }
+				}
 			}
 			else if (!strcmp(arg, "-e"))
 			{

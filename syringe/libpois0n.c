@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 
 #include "libpois0n.h"
+#include "libpartial.h"
 #include "libirecovery.h"
 
 #include "common.h"
@@ -39,6 +40,10 @@ int recovery_callback(irecv_client_t client, const irecv_event_t* event) {
 	return 0;
 }
 
+void download_callback(ZipInfo* info, CDFile* file, size_t progress) {
+	if(progress_callback)
+		progress_callback(progress, user_object);
+}
 
 int send_command(char* command) {
 	unsigned int ret = 0;
@@ -56,6 +61,124 @@ int send_command(char* command) {
 	}
 
 	return ret;
+}
+
+int fetch_image(const char* path, const char* output) {
+	
+	debug("Fetching %s...\n", path);
+	if (download_file_from_zip(device->url, path, output, &download_callback) != 0) {
+		error("Unable to fetch %s\n", path);
+		return -1;
+	}
+
+	return 0;
+}
+
+int fetch_dfu_image(const char* type, const char* output) {
+	char name[64];
+	char path[255];
+
+	memset(name, '\0', 64);
+	memset(path, '\0', 255);
+	snprintf(name, 63, "%s.%s.RELEASE.dfu", type, device->model);
+	snprintf(path, 254, "Firmware/dfu/%s", name);
+
+	debug("Preparing to fetch DFU image from Apple's servers\n");
+	if (fetch_image(path, output) < 0) {
+		error("Unable to fetch DFU image from Apple's servers\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int fetch_firmware_image(const char* type, const char* output) {
+	char name[64];
+	char path[255];
+
+	memset(name, '\0', 64);
+	memset(path, '\0', 255);
+	snprintf(name, 63, "%s.%s.RELEASE.img3", type, device->model);
+	snprintf(path, 254, "Firmware/all_flash/all_flash.%s.production/%s", device->model, name);
+
+	debug("Preparing to fetch firmware image from Apple's servers\n");
+	if (fetch_image(path, output) < 0) {
+		error("Unable to fetch firmware image from Apple's servers\n");
+	}
+
+	return 0;
+}
+
+int upload_dfu_image(const char* type) {
+	char image[255];
+	struct stat buf;
+	irecv_error_t error = IRECV_E_SUCCESS;
+
+	memset(image, '\0', 255);
+	snprintf(image, 254, "%s.%s", type, device->model);
+
+	debug("Checking if %s already exists\n", image);
+	if (stat(image, &buf) != 0) {
+		if (fetch_dfu_image(type, image) < 0) {
+			error("Unable to upload DFU image\n");
+			return -1;
+		}
+	}
+
+	if (client->mode != kDfuMode) {
+		debug("Resetting device counters\n");
+		error = irecv_reset_counters(client);
+		if (error != IRECV_E_SUCCESS) {
+			debug("%s\n", irecv_strerror(error));
+			return -1;
+		}
+	}
+
+	debug("Uploading %s to device\n", image);
+	error = irecv_send_file(client, image, 1);
+	if (error != IRECV_E_SUCCESS) {
+		debug("%s\n", irecv_strerror(error));
+		return -1;
+	}
+
+	remove(image);
+	return 0;
+}
+
+int upload_firmware_image(const char* type) {
+	char image[255];
+	struct stat buf;
+	irecv_error_t error = IRECV_E_SUCCESS;
+
+	memset(image, '\0', 255);
+	snprintf(image, 254, "%s.%s", type, device->model);
+
+	debug("Checking if %s already exists\n", image);
+	if (stat(image, &buf) != 0) {
+		if (fetch_firmware_image(type, image) < 0) {
+			error("Unable to upload firmware image\n");
+			return -1;
+		}
+	}
+
+	debug("Resetting device counters\n");
+	error = irecv_reset_counters(client);
+	if (error != IRECV_E_SUCCESS) {
+		error("Unable to upload firmware image\n");
+		debug("%s\n", irecv_strerror(error));
+		return -1;
+	}
+
+	debug("Uploading %s to device\n", image);
+	error = irecv_send_file(client, image, 1);
+	if (error != IRECV_E_SUCCESS) {
+		error("Unable to upload firmware image\n");
+		debug("%s\n", irecv_strerror(error));
+		return -1;
+	}
+
+	remove(image);
+	return 0;
 }
 
 void pois0n_init() {
