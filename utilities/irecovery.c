@@ -137,7 +137,7 @@ void init_shell(irecv_client_t client)
 
 	while (!quit) {
 #ifdef READLINE
-		char* cmd = readline("> ");
+		cmd = readline("> ");
 #else
 		printf("> ");
 		cmd = malloc(512);
@@ -391,7 +391,6 @@ int main(int argc, char* argv[]) {
 				unsigned char ecid[20], srnm[16], imei[16];
 				irecv_init();
 				irecv_open_attempts(&client, 10);
-				printf("\n");
 
 				if (argc >= 3 && (!strcmp(argv[2],"-serial"))) {
 					error = irecv_get_cpid(client, &cpid);

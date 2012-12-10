@@ -129,6 +129,7 @@ int upload_dfu_image(const char* type) {
 		debug("Resetting device counters\n");
 		error = irecv_reset_counters(client);
 		if (error != IRECV_E_SUCCESS) {
+			remove(image);
 			debug("%s\n", irecv_strerror(error));
 			return -1;
 		}
@@ -137,6 +138,7 @@ int upload_dfu_image(const char* type) {
 	debug("Uploading %s to device\n", image);
 	error = irecv_send_file(client, image, 1);
 	if (error != IRECV_E_SUCCESS) {
+		remove(image);
 		debug("%s\n", irecv_strerror(error));
 		return -1;
 	}
@@ -164,6 +166,7 @@ int upload_firmware_image(const char* type) {
 	debug("Resetting device counters\n");
 	error = irecv_reset_counters(client);
 	if (error != IRECV_E_SUCCESS) {
+		remove(image);
 		error("Unable to upload firmware image\n");
 		debug("%s\n", irecv_strerror(error));
 		return -1;
@@ -172,6 +175,7 @@ int upload_firmware_image(const char* type) {
 	debug("Uploading %s to device\n", image);
 	error = irecv_send_file(client, image, 1);
 	if (error != IRECV_E_SUCCESS) {
+		remove(image);
 		error("Unable to upload firmware image\n");
 		debug("%s\n", irecv_strerror(error));
 		return -1;
