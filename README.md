@@ -7,7 +7,7 @@ A libusb-based commandline utility that talks to iBoot/iBSS on iOS devices via U
 
 ### Usage
 
-  iRecovery [args]
+	iRecovery [args]
 
 		-c <command>      Send a single command to client.
 		-detect           Get board config. (eg. n90ap)
