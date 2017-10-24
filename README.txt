@@ -17,7 +17,6 @@ And iH8sn0w's syringe-irecovery: http://github.com/iH8sn0w/syringe-irecovery
 Modified by Neal (@iNeal) - http://github.com/Neal/syringe-irecovery
 
 Usage: /Users/shmadul/syringe-irecovery/utilities/irecovery [args]
-
   -c <command>      Send a single command to client.
   -detect           Get board config. (eg. n90ap)
   -dfu              Poll device for DFU mode.
